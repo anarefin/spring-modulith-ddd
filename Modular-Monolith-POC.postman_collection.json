@@ -1,0 +1,715 @@
+{
+	"info": {
+		"_postman_id": "mm-poc-2025-001",
+		"name": "Modular Monolith POC",
+		"description": "Complete API collection for testing the Modular Monolithic POC with Product, Order, and Payment modules.\n\n## Usage\n1. Start the application: `docker-compose up --build`\n2. Import this collection into Postman\n3. Run requests in order or use the \"Complete E-Commerce Flow\" folder\n\n## Base URL\nhttp://localhost:8080",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Product Module",
+			"item": [
+				{
+					"name": "Get All Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products"
+							]
+						},
+						"description": "Retrieves all products from the product catalog.\n\nSample data is automatically loaded on startup."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"1"
+							]
+						},
+						"description": "Retrieves a specific product by ID.\n\nReturns 404 if product not found."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/available",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"available"
+							]
+						},
+						"description": "Retrieves only products with stock > 0."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"created_product_id\", jsonData.id);",
+									"    pm.test(\"Product created successfully\", function () {",
+									"        pm.expect(jsonData.name).to.eql(\"New Test Product\");",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"New Test Product\",\n    \"description\": \"A test product created via Postman\",\n    \"price\": 149.99,\n    \"stock\": 50\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products"
+							]
+						},
+						"description": "Creates a new product in the catalog.\n\nRequired fields:\n- name: string\n- price: decimal (> 0)\n- stock: integer (>= 0)\n\nOptional:\n- description: string"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Product Name\",\n    \"description\": \"Updated description\",\n    \"price\": 199.99,\n    \"stock\": 75\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/products/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"1"
+							]
+						},
+						"description": "Updates an existing product.\n\nAll fields are required in the request body."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/999",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"999"
+							]
+						},
+						"description": "Deletes a product from the catalog.\n\n⚠️ Warning: This will permanently delete the product."
+					},
+					"response": []
+				}
+			],
+			"description": "Product Module APIs for managing the product catalog.\n\nSchema: product_schema"
+		},
+		{
+			"name": "Order Module",
+			"item": [
+				{
+					"name": "Get All Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							]
+						},
+						"description": "Retrieves all orders from the system."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"1"
+							]
+						},
+						"description": "Retrieves a specific order by ID.\n\nReturns 404 if order not found."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Orders by Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/status/PENDING",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"status",
+								"PENDING"
+							]
+						},
+						"description": "Retrieves orders filtered by status.\n\nValid statuses:\n- PENDING\n- PAID\n- FAILED\n- CANCELLED"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"created_order_id\", jsonData.id);",
+									"    pm.test(\"Order created successfully\", function () {",
+									"        pm.expect(jsonData.status).to.eql(\"PENDING\");",
+									"    });",
+									"    pm.test(\"Product stock was reduced\", function () {",
+									"        pm.expect(jsonData.quantity).to.be.above(0);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productId\": 1,\n    \"quantity\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							]
+						},
+						"description": "Creates a new order.\n\n**Inter-Module Communication:**\n1. Validates product exists (calls Product Module)\n2. Checks stock availability (calls Product Module)\n3. Creates order with PENDING status\n4. Reduces product stock (calls Product Module)\n\nRequired fields:\n- productId: long\n- quantity: integer (> 0)\n\nReturns 400 if:\n- Product not found\n- Insufficient stock"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Order",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/1/cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"1",
+								"cancel"
+							]
+						},
+						"description": "Cancels an existing order.\n\nSets order status to CANCELLED."
+					},
+					"response": []
+				}
+			],
+			"description": "Order Module APIs for order management.\n\nSchema: order_schema\nDepends on: Product Module"
+		},
+		{
+			"name": "Payment Module",
+			"item": [
+				{
+					"name": "Get All Payments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments"
+							]
+						},
+						"description": "Retrieves all payments from the system."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments",
+								"1"
+							]
+						},
+						"description": "Retrieves a specific payment by ID.\n\nReturns 404 if payment not found."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment by Order ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/order/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments",
+								"order",
+								"1"
+							]
+						},
+						"description": "Retrieves payment information for a specific order.\n\nReturns 404 if no payment exists for the order."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payments by Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/status/SUCCESS",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments",
+								"status",
+								"SUCCESS"
+							]
+						},
+						"description": "Retrieves payments filtered by status.\n\nValid statuses:\n- PENDING\n- SUCCESS\n- FAILED\n- REFUNDED"
+					},
+					"response": []
+				},
+				{
+					"name": "Process Payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"payment_id\", jsonData.id);",
+									"    pm.test(\"Payment processed\", function () {",
+									"        pm.expect(jsonData.status).to.be.oneOf([\"SUCCESS\", \"FAILED\"]);",
+									"    });",
+									"    if (jsonData.status === \"SUCCESS\") {",
+									"        pm.test(\"Transaction ID generated\", function () {",
+									"            pm.expect(jsonData.transactionId).to.exist;",
+									"        });",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"orderId\": 1,\n    \"paymentMethod\": \"CREDIT_CARD\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/payments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments"
+							]
+						},
+						"description": "Processes payment for an order.\n\n**Inter-Module Communication:**\n1. Validates order exists (calls Order Module)\n2. Checks order is in PENDING status\n3. Processes payment (95% success rate simulation)\n4. Updates order status to PAID or FAILED (calls Order Module)\n\nRequired fields:\n- orderId: long\n- paymentMethod: string (e.g., CREDIT_CARD, DEBIT_CARD, PAYPAL)\n\nReturns 400 if:\n- Order not found\n- Order already paid\n- Order not in PENDING status"
+					},
+					"response": []
+				}
+			],
+			"description": "Payment Module APIs for payment processing.\n\nSchema: payment_schema\nDepends on: Order Module"
+		},
+		{
+			"name": "Complete E-Commerce Flow",
+			"item": [
+				{
+					"name": "Step 1: View Available Products",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Products array exists\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    pm.expect(jsonData.length).to.be.above(0);",
+									"    ",
+									"    // Save first product ID for next step",
+									"    pm.environment.set(\"product_id\", jsonData[0].id);",
+									"    pm.environment.set(\"product_name\", jsonData[0].name);",
+									"    pm.environment.set(\"product_price\", jsonData[0].price);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/available",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"available"
+							]
+						},
+						"description": "**Step 1**: Browse available products.\n\nThis saves the first product ID for the next step."
+					},
+					"response": []
+				},
+				{
+					"name": "Step 2: Create Order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Order created with PENDING status\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql(\"PENDING\");",
+									"    pm.expect(jsonData.id).to.exist;",
+									"    ",
+									"    // Save order ID for payment",
+									"    pm.environment.set(\"order_id\", jsonData.id);",
+									"    ",
+									"    console.log(\"Order created: ID = \" + jsonData.id);",
+									"    console.log(\"Total amount: $\" + jsonData.totalAmount);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productId\": {{product_id}},\n    \"quantity\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							]
+						},
+						"description": "**Step 2**: Create an order for the selected product.\n\n**Inter-Module Calls:**\n- Validates product exists\n- Checks stock availability\n- Reduces product stock\n\nThis saves the order ID for the payment step."
+					},
+					"response": []
+				},
+				{
+					"name": "Step 3: Process Payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Payment processed\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.be.oneOf([\"SUCCESS\", \"FAILED\"]);",
+									"    ",
+									"    if (jsonData.status === \"SUCCESS\") {",
+									"        console.log(\"✅ Payment SUCCESS!\");",
+									"        console.log(\"Transaction ID: \" + jsonData.transactionId);",
+									"    } else {",
+									"        console.log(\"❌ Payment FAILED\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"orderId\": {{order_id}},\n    \"paymentMethod\": \"CREDIT_CARD\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/payments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments"
+							]
+						},
+						"description": "**Step 3**: Process payment for the order.\n\n**Inter-Module Calls:**\n- Validates order exists\n- Checks order status\n- Updates order to PAID (if successful)\n\n**Note:** Payment simulation has 95% success rate."
+					},
+					"response": []
+				},
+				{
+					"name": "Step 4: Verify Order Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Order status updated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.be.oneOf([\"PAID\", \"FAILED\"]);",
+									"    ",
+									"    if (jsonData.status === \"PAID\") {",
+									"        console.log(\"✅ Order is PAID\");",
+									"    } else {",
+									"        console.log(\"⚠️ Order payment failed\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/orders/{{order_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"{{order_id}}"
+							]
+						},
+						"description": "**Step 4**: Verify the order status has been updated.\n\nExpect status to be PAID (if payment succeeded) or FAILED."
+					},
+					"response": []
+				},
+				{
+					"name": "Step 5: Verify Product Stock Reduced",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product stock was reduced\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    console.log(\"Product: \" + jsonData.name);",
+									"    console.log(\"Current stock: \" + jsonData.stock);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/products/{{product_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"{{product_id}}"
+							]
+						},
+						"description": "**Step 5**: Verify the product stock has been reduced.\n\nStock should be 2 less than before the order."
+					},
+					"response": []
+				}
+			],
+			"description": "Complete end-to-end e-commerce flow demonstrating inter-module communication.\n\n**Flow:**\n1. View available products\n2. Create order (Order → Product communication)\n3. Process payment (Payment → Order communication)\n4. Verify order status updated\n5. Verify product stock reduced\n\n**Run this folder** using \"Run folder\" to execute the complete flow."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "payment_id",
+			"value": "1",
+			"type": "string"
+		}
+	]
+}
+
