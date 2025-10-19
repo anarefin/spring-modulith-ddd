@@ -1,6 +1,6 @@
 package com.demo.modular.config;
 
-import com.demo.modular.product.domain.Product;
+import com.demo.modular.product.api.dto.ProductDTO;
 import com.demo.modular.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,43 +17,48 @@ public class DataInitializer {
 
     @Bean
     CommandLineRunner initDatabase(ProductService productService) {
-        return _ -> {
+        return args -> {
             log.info("Initializing sample data...");
             
             // Create sample products
-            Product laptop = new Product();
-            laptop.setName("Dell XPS 15 Laptop");
-            laptop.setDescription("High-performance laptop with 16GB RAM and 512GB SSD");
-            laptop.setPrice(new BigDecimal("1299.99"));
-            laptop.setStock(10);
+            ProductDTO laptop = ProductDTO.builder()
+                    .name("Dell XPS 15 Laptop")
+                    .description("High-performance laptop with 16GB RAM and 512GB SSD")
+                    .price(new BigDecimal("1299.99"))
+                    .stock(10)
+                    .build();
             productService.createProduct(laptop);
             
-            Product mouse = new Product();
-            mouse.setName("Logitech MX Master 3");
-            mouse.setDescription("Advanced wireless mouse for productivity");
-            mouse.setPrice(new BigDecimal("99.99"));
-            mouse.setStock(50);
+            ProductDTO mouse = ProductDTO.builder()
+                    .name("Logitech MX Master 3")
+                    .description("Advanced wireless mouse for productivity")
+                    .price(new BigDecimal("99.99"))
+                    .stock(50)
+                    .build();
             productService.createProduct(mouse);
             
-            Product keyboard = new Product();
-            keyboard.setName("Keychron K2 Mechanical Keyboard");
-            keyboard.setDescription("Wireless mechanical keyboard with RGB backlight");
-            keyboard.setPrice(new BigDecimal("79.99"));
-            keyboard.setStock(30);
+            ProductDTO keyboard = ProductDTO.builder()
+                    .name("Keychron K2 Mechanical Keyboard")
+                    .description("Wireless mechanical keyboard with RGB backlight")
+                    .price(new BigDecimal("79.99"))
+                    .stock(30)
+                    .build();
             productService.createProduct(keyboard);
             
-            Product monitor = new Product();
-            monitor.setName("LG 27 4K UHD Monitor");
-            monitor.setDescription("27-inch 4K monitor with USB-C connectivity");
-            monitor.setPrice(new BigDecimal("399.99"));
-            monitor.setStock(15);
+            ProductDTO monitor = ProductDTO.builder()
+                    .name("LG 27 4K UHD Monitor")
+                    .description("27-inch 4K monitor with USB-C connectivity")
+                    .price(new BigDecimal("399.99"))
+                    .stock(15)
+                    .build();
             productService.createProduct(monitor);
             
-            Product headphones = new Product();
-            headphones.setName("Sony WH-1000XM5 Headphones");
-            headphones.setDescription("Premium noise-cancelling wireless headphones");
-            headphones.setPrice(new BigDecimal("349.99"));
-            headphones.setStock(25);
+            ProductDTO headphones = ProductDTO.builder()
+                    .name("Sony WH-1000XM5 Headphones")
+                    .description("Premium noise-cancelling wireless headphones")
+                    .price(new BigDecimal("349.99"))
+                    .stock(25)
+                    .build();
             productService.createProduct(headphones);
             
             log.info("Sample data initialized successfully!");
