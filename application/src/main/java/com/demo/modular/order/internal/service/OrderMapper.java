@@ -8,14 +8,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Mapper for converting between Order entity and OrderDTO.
+ * Mapper for converting between Order aggregate and OrderDTO.
  * Internal to order module.
+ * Handles conversion between domain value objects and primitive types.
  */
 @Component
 class OrderMapper {
 
     /**
-     * Converts Order entity to OrderDTO.
+     * Converts Order aggregate to OrderDTO.
+     * Extracts primitive values from value objects.
      */
     public OrderDTO toDTO(Order order) {
         if (order == null) {
@@ -25,9 +27,9 @@ class OrderMapper {
         return OrderDTO.builder()
                 .id(order.getId())
                 .productId(order.getProductId())
-                .productName(order.getProductName())
-                .quantity(order.getQuantity())
-                .totalAmount(order.getTotalAmount())
+                .productName(order.getProductName().getValue())
+                .quantity(order.getQuantity().getValue())
+                .totalAmount(order.getTotalAmount().getAmount())
                 .status(order.getStatus())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
@@ -35,25 +37,7 @@ class OrderMapper {
     }
 
     /**
-     * Converts OrderDTO to Order entity.
-     */
-    public Order toEntity(OrderDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-
-        Order order = new Order();
-        order.setId(dto.getId());
-        order.setProductId(dto.getProductId());
-        order.setProductName(dto.getProductName());
-        order.setQuantity(dto.getQuantity());
-        order.setTotalAmount(dto.getTotalAmount());
-        order.setStatus(dto.getStatus());
-        return order;
-    }
-
-    /**
-     * Converts list of Order entities to list of OrderDTOs.
+     * Converts list of Order aggregates to list of OrderDTOs.
      */
     public List<OrderDTO> toDTOList(List<Order> orders) {
         if (orders == null) {

@@ -10,6 +10,9 @@ import com.demo.modular.payment.api.dto.PaymentStatus;
 import com.demo.modular.payment.api.exception.DuplicatePaymentException;
 import com.demo.modular.payment.api.exception.PaymentProcessingException;
 import com.demo.modular.payment.internal.domain.Payment;
+import com.demo.modular.payment.internal.domain.vo.Money;
+import com.demo.modular.payment.internal.domain.vo.TransactionId;
+import com.demo.modular.payment.internal.domain.vo.OrderId;
 import com.demo.modular.payment.internal.repository.PaymentRepository;
 import com.demo.modular.payment.service.PaymentService;
 import io.micrometer.core.annotation.Timed;
@@ -23,6 +26,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Application Service for Payment module.
+ * Orchestrates use cases - delegates business logic to domain layer.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -37,9 +44,6 @@ class PaymentServiceImpl implements PaymentService {
     @Override
     @Timed(value = "payment.process", description = "Time taken to process a payment")
     public PaymentDTO processPayment(Long orderId, String paymentMethod) {
-        validateOrderId(orderId);
-        validatePaymentMethod(paymentMethod);
-        
         log.info("[Payment Module] Processing payment for order {} with method {}", orderId, paymentMethod);
         
         Payment savedPayment = null;
@@ -63,22 +67,20 @@ class PaymentServiceImpl implements PaymentService {
                 throw new DuplicatePaymentException(orderId);
             }
             
-            // Create payment
-            Payment payment = new Payment();
-            payment.setOrderId(orderId);
-            payment.setAmount(order.getTotalAmount());
-            payment.setPaymentMethod(paymentMethod);
-            payment.setStatus(PaymentStatus.PENDING);
+            // Use static factory method to create payment aggregate with validation
+            Payment payment = Payment.create(
+                OrderId.of(orderId),
+                Money.of(order.getTotalAmount()),
+                paymentMethod
+            );
             
-            // Simulate payment processing
-            boolean paymentSuccess = simulatePaymentGateway(payment);
+            // Process payment through payment gateway
+            boolean paymentSuccess = processPaymentGateway(payment);
             
             if (paymentSuccess) {
-                String transactionId = UUID.randomUUID().toString();
-                payment.markAsSuccess(transactionId);
-                
                 savedPayment = paymentRepository.save(payment);
-                log.info("[Payment Module] Payment processed successfully with transaction id: {}", transactionId);
+                log.info("[Payment Module] Payment processed successfully with transaction id: {}", 
+                    payment.getTransactionId());
                 
                 // Inter-module call: Update order status to PAID
                 try {
@@ -86,15 +88,14 @@ class PaymentServiceImpl implements PaymentService {
                     log.info("[Payment Module] Order status updated to PAID");
                 } catch (Exception e) {
                     log.error("[Payment Module] Failed to update order status to PAID", e);
-                    // Compensation: Mark payment for refund
-                    payment.setStatus(PaymentStatus.REFUNDED);
+                    // Compensation: Request refund using aggregate's business method
+                    payment.requestRefund();
                     paymentRepository.save(payment);
                     log.warn("[Payment Module] [Compensation] Payment marked for refund due to order update failure");
                     throw new PaymentProcessingException(orderId, "Payment succeeded but order update failed", e);
                 }
                 
             } else {
-                payment.markAsFailed();
                 savedPayment = paymentRepository.save(payment);
                 
                 log.error("[Payment Module] Payment processing failed for order: {}", orderId);
@@ -138,7 +139,6 @@ class PaymentServiceImpl implements PaymentService {
     @Transactional(readOnly = true)
     @Timed(value = "payment.findById", description = "Time taken to find payment by ID")
     public Optional<PaymentDTO> getPaymentById(Long id) {
-        validateId(id);
         log.debug("[Payment Module] Fetching payment with id: {}", id);
         return paymentRepository.findById(id)
                 .map(paymentMapper::toDTO);
@@ -148,7 +148,6 @@ class PaymentServiceImpl implements PaymentService {
     @Transactional(readOnly = true)
     @Timed(value = "payment.findByOrderId", description = "Time taken to find payment by order ID")
     public Optional<PaymentDTO> getPaymentByOrderId(Long orderId) {
-        validateOrderId(orderId);
         log.debug("[Payment Module] Fetching payment for order: {}", orderId);
         return paymentRepository.findByOrderId(orderId)
                 .map(paymentMapper::toDTO);
@@ -176,13 +175,49 @@ class PaymentServiceImpl implements PaymentService {
     }
 
     /**
-     * Simulate payment gateway processing.
+     * Process payment through payment gateway.
      * In real implementation, this would call external payment API (Stripe, PayPal, etc.)
      * 
      * @param payment the payment to process
      * @return true if payment succeeds, false otherwise
      */
-    private boolean simulatePaymentGateway(Payment payment) {
+    private boolean processPaymentGateway(Payment payment) {
+        log.info("[Payment Module] Processing payment transaction for payment ID: {}, amount: {}", 
+            payment.getId(), payment.getAmount());
+        
+        try {
+            // Simulate payment gateway interaction
+            boolean success = simulatePaymentGatewayCall(payment);
+            
+            if (success) {
+                // Generate transaction ID
+                TransactionId transactionId = TransactionId.of(UUID.randomUUID().toString());
+                
+                // Use aggregate's business method to mark as success
+                payment.markAsSuccess(transactionId);
+                log.info("[Payment Module] Payment processed successfully. Transaction ID: {}", transactionId);
+            } else {
+                // Use aggregate's business method to mark as failed
+                payment.markAsFailed();
+                log.warn("[Payment Module] Payment processing failed for payment ID: {}", payment.getId());
+            }
+            
+            return success;
+        } catch (Exception e) {
+            log.error("[Payment Module] Exception during payment processing for payment ID: {}", payment.getId(), e);
+            payment.markAsFailed();
+            return false;
+        }
+    }
+
+    /**
+     * Simulate payment gateway processing.
+     * In real implementation, this would call external payment API.
+     * 
+     * @param payment the payment to process
+     * @return true if payment succeeds, false otherwise
+     */
+    private boolean simulatePaymentGatewayCall(Payment payment) {
         log.info("[Payment Module] [External Call] Simulating payment gateway for amount: {}", payment.getAmount());
         
         try {
@@ -194,24 +229,6 @@ class PaymentServiceImpl implements PaymentService {
         
         // Simulate 95% success rate
         return Math.random() < 0.95;
-    }
-
-    private void validateId(Long id) {
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("Payment ID must be positive");
-        }
-    }
-
-    private void validateOrderId(Long orderId) {
-        if (orderId == null || orderId <= 0) {
-            throw new IllegalArgumentException("Order ID must be positive");
-        }
-    }
-
-    private void validatePaymentMethod(String paymentMethod) {
-        if (paymentMethod == null || paymentMethod.trim().isEmpty()) {
-            throw new IllegalArgumentException("Payment method is required");
-        }
     }
 }
 

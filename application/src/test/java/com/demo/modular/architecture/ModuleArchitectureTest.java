@@ -309,13 +309,13 @@ class ModuleArchitectureTest {
     @Test
     void publicServiceInterfacesShouldNotBeInInternalPackage() {
         // Check that there are no public service interfaces in internal package
+        // Service interfaces should be in the service package, not internal
         ArchRule rule = noClasses()
                 .that().resideInAnyPackage("..internal..")
                 .and().areInterfaces()
                 .and().haveSimpleNameEndingWith("Service")
-                .and().arePublic()
-                .should().exist()
-                .allowEmptyShould(true)  // Allow the test to pass if no such classes exist
+                .should().bePublic()
+                .allowEmptyShould(true)  // Allow passing when no classes match (which is the desired state)
                 .because("Public service interfaces belong in the public service package, not internal");
 
         rule.check(importedClasses);

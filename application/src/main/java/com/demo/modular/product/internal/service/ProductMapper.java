@@ -10,12 +10,14 @@ import java.util.stream.Collectors;
 /**
  * Mapper for converting between Product entity and ProductDTO.
  * Internal to product module.
+ * Handles conversion between domain value objects and primitive types.
  */
 @Component
 class ProductMapper {
 
     /**
-     * Converts Product entity to ProductDTO.
+     * Converts Product aggregate to ProductDTO.
+     * Extracts primitive values from value objects.
      */
     public ProductDTO toDTO(Product product) {
         if (product == null) {
@@ -24,48 +26,17 @@ class ProductMapper {
 
         return ProductDTO.builder()
                 .id(product.getId())
-                .name(product.getName())
+                .name(product.getName().getValue())
                 .description(product.getDescription())
-                .price(product.getPrice())
-                .stock(product.getStock())
+                .price(product.getPrice().getAmount())
+                .stock(product.getStock().getValue())
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();
     }
 
     /**
-     * Converts ProductDTO to Product entity.
-     */
-    public Product toEntity(ProductDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-
-        Product product = new Product();
-        product.setId(dto.getId());
-        product.setName(dto.getName());
-        product.setDescription(dto.getDescription());
-        product.setPrice(dto.getPrice());
-        product.setStock(dto.getStock());
-        return product;
-    }
-
-    /**
-     * Updates existing Product entity with data from ProductDTO.
-     */
-    public void updateEntity(Product product, ProductDTO dto) {
-        if (product == null || dto == null) {
-            return;
-        }
-
-        product.setName(dto.getName());
-        product.setDescription(dto.getDescription());
-        product.setPrice(dto.getPrice());
-        product.setStock(dto.getStock());
-    }
-
-    /**
-     * Converts list of Product entities to list of ProductDTOs.
+     * Converts list of Product aggregates to list of ProductDTOs.
      */
     public List<ProductDTO> toDTOList(List<Product> products) {
         if (products == null) {

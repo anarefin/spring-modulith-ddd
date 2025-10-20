@@ -1,122 +1,146 @@
-# Modular Monolithic Architecture POC
+# Modular Monolith with Spring Modulith
 
-A proof-of-concept e-commerce application demonstrating **true multi-module Maven architecture** with PostgreSQL 17, running in Docker containers.
+A production-ready e-commerce application demonstrating **modular monolithic architecture** using **Spring Modulith**, **Domain-Driven Design (DDD)**, and **PostgreSQL 17** with schema-based isolation.
 
-## Architecture Overview
+## 🏗️ Architecture Overview
 
-This POC demonstrates a **true multi-module Maven project** where each business module is an independent Maven module with explicit dependencies:
+This application implements a **modular monolith** pattern where business capabilities are organized into loosely-coupled modules with well-defined boundaries, enforced by Spring Modulith and ArchUnit.
 
-- **Product Module** (`product-module/`) - Product catalog management (Schema: `product_schema`)
-- **Order Module** (`order-module/`) - Order creation and management (Schema: `order_schema`) - **Depends on Product Module**
-- **Payment Module** (`payment-module/`) - Payment processing (Schema: `payment_schema`) - **Depends on Order Module**
-- **Application Module** (`application/`) - Spring Boot application that aggregates all modules
+### Core Modules
 
-### Key Design Principles
+- **Product Module** - Product catalog and inventory management (Schema: `product_schema`)
+- **Order Module** - Order creation and lifecycle management (Schema: `order_schema`)
+- **Payment Module** - Payment processing and transaction handling (Schema: `payment_schema`)
 
-1. **True Maven Multi-Module**: Each module has its own `pom.xml` and can be built independently
-2. **Maven-Level Dependencies**: Explicit dependencies declared in `pom.xml` (not just package imports)
-3. **Schema isolation**: Each module owns its dedicated PostgreSQL schema
-4. **Service interfaces**: Modules expose interfaces for inter-module communication
-5. **Direct method calls**: No HTTP/REST between modules - only direct Java method invocation
-6. **Strong boundaries**: Maven enforces that you cannot use classes from other modules without declaring the dependency
+### Key Architecture Principles
 
-### Inter-Module Communication Flow
+1. **Package-Based Modularity**: Modules are organized by packages, not separate Maven projects
+2. **Spring Modulith Boundaries**: Module boundaries enforced at runtime and compile-time
+3. **Internal Package Encapsulation**: `internal` packages hide implementation details
+4. **Schema Isolation**: Each module owns its dedicated PostgreSQL schema
+5. **Public API Design**: Modules expose only `api`, `service`, and `dto` packages
+6. **Domain-Driven Design**: Rich domain models with value objects
+7. **ArchUnit Testing**: Architecture rules validated in automated tests
 
-```
-Product Module ← Order Module ← Payment Module ← Application Module
-(no dependencies)   (depends on Product)   (depends on Order)   (aggregates all)
-```
-
-- **Order → Product**: Validates product availability and reduces stock
-- **Payment → Order**: Validates order and updates order status
-
-## Technology Stack
-
-- **JDK**: 25
-- **Spring Boot**: 3.5.6
-- **Database**: PostgreSQL 17 (single database, multiple schemas)
-- **Build Tool**: Maven (multi-module project)
-- **Containerization**: Docker & Docker Compose
-
-## Project Structure
+## 📐 Module Dependency Graph
 
 ```
-modular-monolith-parent/                    ← Parent POM (aggregator)
-├── pom.xml                                 ← Parent POM defining modules
-│
-├── product-module/                         ← Independent Maven Module
-│   ├── pom.xml                             ← Module POM (no dependencies)
-│   └── src/main/java/com/demo/modular/product/
-│       ├── domain/Product.java
-│       ├── repository/ProductRepository.java
-│       ├── service/ProductService.java
-│       ├── service/ProductServiceImpl.java
-│       └── api/ProductController.java
-│
-├── order-module/                           ← Independent Maven Module
-│   ├── pom.xml                             ← Module POM (depends on product-module)
-│   └── src/main/java/com/demo/modular/order/
-│       ├── domain/Order.java
-│       ├── domain/OrderStatus.java
-│       ├── repository/OrderRepository.java
-│       ├── service/OrderService.java
-│       ├── service/OrderServiceImpl.java
-│       └── api/OrderController.java
-│
-├── payment-module/                         ← Independent Maven Module
-│   ├── pom.xml                             ← Module POM (depends on order-module)
-│   └── src/main/java/com/demo/modular/payment/
-│       ├── domain/Payment.java
-│       ├── domain/PaymentStatus.java
-│       ├── repository/PaymentRepository.java
-│       ├── service/PaymentService.java
-│       ├── service/PaymentServiceImpl.java
-│       └── api/PaymentController.java
-│
-├── application/                            ← Spring Boot Application Module
-│   ├── pom.xml                             ← Aggregates all modules
-│   └── src/
-│       ├── main/java/com/demo/modular/
-│       │   ├── ModularMonolithApplication.java  ← @SpringBootApplication
-│       │   └── config/DataInitializer.java
-│       └── main/resources/
-│           └── application.properties
-│
-├── docker-compose.yml
-├── Dockerfile
-└── scripts/
-    └── init-schemas.sql
+┌─────────────────────────────────────────────────────┐
+│                                                      │
+│              Product Module (No Dependencies)        │
+│              • ProductService                        │
+│              • ProductDTO                            │
+│                                                      │
+└──────────────────────┬───────────────────────────────┘
+                       │
+                       │ depends on
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│                                                      │
+│              Order Module                            │
+│              • OrderService                          │
+│              • OrderDTO, OrderStatus                 │
+│              • Uses: ProductService                  │
+│                                                      │
+└──────────────────────┬───────────────────────────────┘
+                       │
+                       │ depends on
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│                                                      │
+│              Payment Module                          │
+│              • PaymentService                        │
+│              • PaymentDTO, PaymentStatus             │
+│              • Uses: OrderService                    │
+│                                                      │
+└─────────────────────────────────────────────────────┘
 ```
 
-## Getting Started
+## 🏛️ Module Structure
+
+Each module follows a consistent structure with **public API** and **internal implementation**:
+
+```
+com.demo.modular.{module}/
+├── api/                          ← Public API (accessible from other modules)
+│   ├── dto/                      ← Data Transfer Objects
+│   ├── exception/                ← Public exceptions
+│   └── {Module}Controller.java   ← REST endpoints
+│
+├── service/                      ← Public service interfaces
+│   └── {Module}Service.java      ← Inter-module communication contract
+│
+├── internal/                     ← Module-private (encapsulated)
+│   ├── domain/                   ← Domain entities and value objects
+│   │   ├── {Entity}.java         ← JPA entities
+│   │   └── vo/                   ← Value Objects (Money, ProductId, etc.)
+│   ├── repository/               ← Data access layer
+│   │   └── {Module}Repository.java
+│   └── service/                  ← Service implementations
+│       ├── {Module}ServiceImpl.java
+│       └── {Module}Mapper.java
+│
+└── package-info.java             ← @ApplicationModule metadata
+```
+
+### Package Visibility Rules
+
+| Package | Visibility | Purpose |
+|---------|-----------|---------|
+| `api.dto` | **Public** | Cross-module data contracts |
+| `api.exception` | **Public** | Module-specific exceptions |
+| `service` | **Public** | Service interfaces for inter-module calls |
+| `internal.domain` | **Private** | Domain entities (JPA) |
+| `internal.repository` | **Private** | Data access |
+| `internal.service` | **Private** | Service implementations |
+
+**Key Benefit**: Other modules can only access `api.*` and `service` packages. All implementation details in `internal` are hidden.
+
+## 🛠️ Technology Stack
+
+| Category | Technology | Version |
+|----------|-----------|---------|
+| **Language** | Java | 21 |
+| **Framework** | Spring Boot | 3.5.6 |
+| **Modularity** | Spring Modulith | 1.2.3 |
+| **Database** | PostgreSQL | 17 |
+| **ORM** | Spring Data JPA + Hibernate | - |
+| **Resilience** | Resilience4j | 2.2.0 |
+| **Architecture Testing** | ArchUnit | 1.3.0 |
+| **Observability** | Micrometer + Zipkin | - |
+| **Build Tool** | Maven | - |
+| **Containerization** | Docker Compose | - |
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Docker
-- Docker Compose
+- Docker & Docker Compose
+- JDK 21+ (for local development)
 
-### Running the Application
+### Quick Start with Docker
 
-1. **Clone the repository**
-   ```bash
-   cd multi-module-demo
-   ```
-
-2. **Start the application with Docker Compose**
+1. **Start the application**
    ```bash
    docker-compose up --build
    ```
 
    This will:
-   - Start PostgreSQL 17 container
-   - Create three schemas (product_schema, order_schema, payment_schema)
-   - Build all Maven modules
-   - Build and start the Spring Boot application
+   - Start PostgreSQL 17 with three schemas
+   - Build the Spring Boot application
    - Initialize sample product data
+   - Start the application on port 8080
 
-3. **Access the application**
+2. **Verify the application is running**
+   ```bash
+   curl http://localhost:8080/actuator/health
+   ```
+
+3. **Access the services**
    - Application: http://localhost:8080
-   - PostgreSQL: localhost:5432
+   - Actuator: http://localhost:8080/actuator
+   - Modulith Info: http://localhost:8080/actuator/modulith
+   - Database: localhost:5432
      - Database: `modular_monolith_db`
      - Username: `admin`
      - Password: `admin123`
@@ -126,44 +150,39 @@ modular-monolith-parent/                    ← Parent POM (aggregator)
    docker-compose down
    ```
 
-### Building Locally
+### Local Development Setup
 
-#### Build All Modules
+#### 1. Start PostgreSQL Only
+```bash
+docker-compose up postgres -d
+```
+
+#### 2. Build the Application
 ```bash
 ./mvnw clean install
 ```
 
-This builds modules in order:
-1. Product Module (no dependencies)
-2. Order Module (depends on Product)
-3. Payment Module (depends on Order)  
-4. Application Module (depends on all)
-
-#### Build Specific Module
+#### 3. Run the Application
 ```bash
-# Build only product module
-./mvnw clean install -pl product-module
-
-# Build order module and its dependencies
-./mvnw clean install -pl order-module -am
-
-# Build application and all dependencies
-./mvnw clean install -pl application -am
-```
-
-#### Run Locally
-```bash
-# Build all modules first
-./mvnw clean install
-
-# Run the application module
 cd application
-mvn spring-boot:run
+../mvnw spring-boot:run
 ```
 
-Or run from IDE: Run `ModularMonolithApplication.java`
+Or run from your IDE: `ModularMonolithApplication.java`
 
-## API Documentation
+#### 4. Run Tests
+```bash
+# Run all tests including Spring Modulith and ArchUnit tests
+./mvnw test
+
+# Run only architecture tests
+./mvnw test -Dtest=ModuleArchitectureTest
+
+# Run only Spring Modulith verification
+./mvnw test -Dtest=ApplicationModulesTest
+```
+
+## 📡 API Documentation
 
 ### Product Module API
 
@@ -172,10 +191,10 @@ Or run from IDE: Run `ModularMonolithApplication.java`
 curl -X POST http://localhost:8080/api/products \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "New Product",
-    "description": "Product description",
-    "price": 99.99,
-    "stock": 100
+    "name": "MacBook Pro M3",
+    "description": "16-inch laptop with M3 chip",
+    "price": 2499.99,
+    "stock": 50
   }'
 ```
 
@@ -189,9 +208,16 @@ curl http://localhost:8080/api/products
 curl http://localhost:8080/api/products/1
 ```
 
-#### Get Available Products (stock > 0)
+#### Get Available Products
 ```bash
 curl http://localhost:8080/api/products/available
+```
+
+#### Update Stock
+```bash
+curl -X PUT http://localhost:8080/api/products/1/stock \
+  -H "Content-Type: application/json" \
+  -d '{"stock": 100}'
 ```
 
 ### Order Module API
@@ -206,11 +232,11 @@ curl -X POST http://localhost:8080/api/orders \
   }'
 ```
 
-This will:
-1. Validate product exists (inter-module call to Product module)
-2. Check stock availability (inter-module call to Product module)
-3. Create order with PENDING status
-4. Reduce product stock (inter-module call to Product module)
+**Inter-module Flow:**
+1. Validates product exists via `ProductService`
+2. Checks stock availability
+3. Creates order with `PENDING` status
+4. Reduces product stock atomically
 
 #### Get All Orders
 ```bash
@@ -239,257 +265,154 @@ curl -X POST http://localhost:8080/api/payments \
   }'
 ```
 
-This will:
-1. Validate order exists (inter-module call to Order module)
-2. Check order is in PENDING status
-3. Process payment (simulated with 95% success rate)
-4. Update order status to PAID or FAILED (inter-module call to Order module)
-
-#### Get All Payments
-```bash
-curl http://localhost:8080/api/payments
-```
+**Inter-module Flow:**
+1. Validates order exists via `OrderService`
+2. Checks order status is `PENDING`
+3. Processes payment (simulated with 95% success rate)
+4. Updates order status to `PAID` or `FAILED`
 
 #### Get Payment by Order ID
 ```bash
 curl http://localhost:8080/api/payments/order/1
 ```
 
-## Complete E-Commerce Flow Example
-
-### Step 1: View Available Products
+#### Get All Payments
 ```bash
-curl http://localhost:8080/api/products/available
+curl http://localhost:8080/api/payments
 ```
 
-### Step 2: Create an Order
+## 🔄 Complete E-Commerce Flow
+
+### Full Transaction Example
+
 ```bash
+# Step 1: View available products
+curl http://localhost:8080/api/products/available
+
+# Step 2: Create an order (saves orderId from response)
 curl -X POST http://localhost:8080/api/orders \
   -H "Content-Type: application/json" \
-  -d '{
-    "productId": 1,
-    "quantity": 1
-  }'
-```
-Response will include `orderId`.
+  -d '{"productId": 1, "quantity": 1}'
+# Response: {"id": 1, "status": "PENDING", ...}
 
-### Step 3: Process Payment for the Order
-```bash
+# Step 3: Process payment for the order
 curl -X POST http://localhost:8080/api/payments \
   -H "Content-Type: application/json" \
-  -d '{
-    "orderId": 1,
-    "paymentMethod": "CREDIT_CARD"
-  }'
-```
+  -d '{"orderId": 1, "paymentMethod": "CREDIT_CARD"}'
 
-### Step 4: Verify Order Status Changed to PAID
-```bash
+# Step 4: Verify order status changed to PAID
 curl http://localhost:8080/api/orders/1
-```
 
-### Step 5: Check Product Stock Reduced
-```bash
+# Step 5: Confirm product stock was reduced
 curl http://localhost:8080/api/products/1
 ```
 
-## Testing with Postman
+## 🧪 Testing & Verification
 
-We've provided a comprehensive Postman collection for easy API testing:
-
-### Quick Start with Postman
-
-1. **Import Collection**
-   ```
-   - Open Postman
-   - Click "Import"
-   - Select file: Modular-Monolith-POC.postman_collection.json
-   ```
-
-2. **Run Automated Flow**
-   ```
-   - Navigate to "Complete E-Commerce Flow" folder
-   - Click "Run" button
-   - Watch all 5 steps execute automatically
-   ```
-
-3. **View Detailed Guide**
-   - See `POSTMAN-GUIDE.md` for comprehensive documentation
-
-### Collection Features
-
-- ✅ **16 API endpoints** organized by module (Product, Order, Payment)
-- ✅ **Automated test scripts** verifying responses and business logic
-- ✅ **Complete e-commerce flow** (5 automated steps)
-- ✅ **Environment variables** auto-managed between requests
-- ✅ **Request/response examples** with detailed descriptions
-- ✅ **Inter-module communication** verification with logs
-
-### What the Collection Tests
-
-The collection includes automated tests that verify:
-- ✅ Product creation and stock management
-- ✅ Order creation with Product module validation (inter-module call)
-- ✅ Payment processing with Order module status update (inter-module call)
-- ✅ Complete flow from product selection to successful payment
-- ✅ Data consistency across all three schemas
-
-### Run from Command Line (Newman)
+### Spring Modulith Module Verification
 
 ```bash
-# Install Newman
-npm install -g newman
-
-# Run collection
-newman run Modular-Monolith-POC.postman_collection.json
-
-# Run with HTML report
-newman run Modular-Monolith-POC.postman_collection.json -r html
+./mvnw test -Dtest=ApplicationModulesTest
 ```
 
-See `POSTMAN-GUIDE.md` for detailed documentation.
+This test:
+- ✅ Verifies module boundaries are not violated
+- ✅ Ensures `internal` packages are not accessed from other modules
+- ✅ Generates PlantUML diagrams in `target/spring-modulith-docs/`
 
-## Multi-Module Maven Architecture Benefits
-
-### 1. Strong Boundaries Enforced by Maven
-You **cannot** import classes from another module without declaring it in `pom.xml`:
-
-```java
-// In order-module, this will COMPILE ERROR without dependency:
-import com.demo.modular.product.service.ProductService;  // ❌ Compilation error!
-```
-
-After adding to `order-module/pom.xml`:
-```xml
-<dependency>
-    <groupId>com.demo</groupId>
-    <artifactId>product-module</artifactId>
-</dependency>
-```
-
-Now it works:
-```java
-import com.demo.modular.product.service.ProductService;  // ✅ Works!
-```
-
-### 2. Independent Building
-Each module can be built independently:
+### ArchUnit Architecture Tests
 
 ```bash
-# Build just product module
-cd product-module
-mvn clean install
-
-# Build just order module (requires product-module in local repo)
-cd order-module
-mvn clean install
+./mvnw test -Dtest=ModuleArchitectureTest
 ```
 
-### 3. Circular Dependency Prevention
-Maven enforces acyclic dependencies:
+Over 20 architecture rules enforced:
+- ✅ Controllers only depend on services
+- ✅ Services don't depend on controllers
+- ✅ Repositories only accessed by services
+- ✅ Internal packages not public
+- ✅ No cyclic dependencies
+- ✅ Domain entities in `internal.domain`
+- ✅ DTOs in `api.dto`
+- ✅ Exceptions in `api.exception`
+- ✅ And many more...
 
-```
-product-module → order-module → payment-module  ✅ Valid
-payment-module → product-module  ❌ Would create cycle - Maven ERROR!
-```
+### Module-Specific Tests
 
-### 4. Module Versioning
-Each module is a separate artifact:
-
-```
-com.demo:product-module:1.0.0-SNAPSHOT
-com.demo:order-module:1.0.0-SNAPSHOT
-com.demo:payment-module:1.0.0-SNAPSHOT
-```
-
-### 5. Clear Team Ownership
-- **Team A** owns `product-module/`
-- **Team B** owns `order-module/`
-- **Team C** owns `payment-module/`
-
-Each team can work in their module with clear boundaries.
-
-## Module Dependencies in POM
-
-### Product Module (`product-module/pom.xml`)
-```xml
-<!-- No module dependencies -->
-<dependencies>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
-    <!-- ... -->
-</dependencies>
-```
-
-### Order Module (`order-module/pom.xml`)
-```xml
-<dependencies>
-    <!-- Explicit dependency on Product Module -->
-    <dependency>
-        <groupId>com.demo</groupId>
-        <artifactId>product-module</artifactId>
-    </dependency>
-    <!-- ... -->
-</dependencies>
-```
-
-### Payment Module (`payment-module/pom.xml`)
-```xml
-<dependencies>
-    <!-- Explicit dependency on Order Module -->
-    <dependency>
-        <groupId>com.demo</groupId>
-        <artifactId>order-module</artifactId>
-    </dependency>
-    <!-- ... -->
-</dependencies>
-```
-
-### Application Module (`application/pom.xml`)
-```xml
-<dependencies>
-    <!-- Aggregates all modules -->
-    <dependency>
-        <groupId>com.demo</groupId>
-        <artifactId>product-module</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>com.demo</groupId>
-        <artifactId>order-module</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>com.demo</groupId>
-        <artifactId>payment-module</artifactId>
-    </dependency>
-</dependencies>
-```
-
-## Module Isolation Verification
-
-### Maven Build Order
 ```bash
-./mvnw clean install
+# Test Product module
+./mvnw test -Dtest=ProductModuleTest
+
+# Test Order module
+./mvnw test -Dtest=OrderModuleTest
 ```
 
-Output shows correct build order:
-```
-[INFO] Reactor Build Order:
-[INFO] 
-[INFO] Modular Monolithic POC - Parent                  [pom]
-[INFO] Product Module                                   [jar]
-[INFO] Order Module                                     [jar]
-[INFO] Payment Module                                   [jar]
-[INFO] Application Module                               [jar]
+## 📊 Observability & Monitoring
+
+### Actuator Endpoints
+
+```bash
+# Health check
+curl http://localhost:8080/actuator/health
+
+# Module information
+curl http://localhost:8080/actuator/modulith
+
+# Circuit breakers
+curl http://localhost:8080/actuator/circuitbreakers
+
+# Metrics
+curl http://localhost:8080/actuator/metrics
+
+# Prometheus metrics
+curl http://localhost:8080/actuator/prometheus
 ```
 
-### Database Schema Verification
+### Resilience4j Configuration
+
+The application includes:
+- **Circuit Breaker**: Prevents cascading failures in inter-module calls
+- **Retry**: Automatic retry with exponential backoff
+- **Rate Limiter**: Protects modules from overload
+- **Time Limiter**: Timeout protection
+
+Configuration in `application.properties`:
+```properties
+# Circuit Breaker
+resilience4j.circuitbreaker.instances.productService.baseConfig=default
+resilience4j.circuitbreaker.instances.orderService.baseConfig=default
+
+# Retry
+resilience4j.retry.instances.productService.maxAttempts=3
+resilience4j.retry.instances.orderService.maxAttempts=2
+```
+
+### Distributed Tracing
+
+View traces at: http://localhost:9411 (when Zipkin is configured)
+
+## 🗄️ Database Architecture
+
+### Schema Isolation
+
+```sql
+-- Three separate schemas in one database
+modular_monolith_db
+├── product_schema
+│   └── products (id, name, description, price, stock, created_at, updated_at)
+├── order_schema
+│   └── orders (id, product_id, product_name, quantity, total_amount, status, created_at, updated_at)
+└── payment_schema
+    └── payments (id, order_id, amount, status, payment_method, transaction_id, created_at, updated_at)
+```
+
+### Database Commands
+
 ```bash
 # Connect to PostgreSQL
 docker exec -it modular-monolith-postgres psql -U admin -d modular_monolith_db
 
-# List all schemas
+# List schemas
 \dn
 
 # View tables in each schema
@@ -497,94 +420,251 @@ docker exec -it modular-monolith-postgres psql -U admin -d modular_monolith_db
 \dt order_schema.*
 \dt payment_schema.*
 
-# Query from specific schema
+# Query data
 SELECT * FROM product_schema.products;
 SELECT * FROM order_schema.orders;
 SELECT * FROM payment_schema.payments;
 ```
 
-## Key Observations
+### Key Design Decisions
 
-1. **Maven Module Isolation**: Each module is a separate Maven artifact with its own `pom.xml`
-2. **Explicit Dependencies**: Dependencies are declared at Maven level in `pom.xml`
-3. **Schema Isolation**: Each module's tables are isolated in separate schemas
-4. **No Foreign Keys Across Modules**: Order table stores `productId` but no FK constraint
-5. **Service-Level Communication**: Modules communicate through service interfaces, not database joins
-6. **Single Transaction Per Module**: Each module manages its own transactions
-7. **Data Denormalization**: Order stores `productName` snapshot to avoid dependencies
+1. **No Foreign Keys Across Schemas**: Loose coupling between modules
+2. **Data Denormalization**: `orders` table stores `product_name` snapshot
+3. **Eventual Consistency**: Each module manages its own transactions
+4. **Schema-Level Isolation**: Prevents accidental cross-module joins
 
-## Migration Path to Microservices
+## 🏆 Spring Modulith Features
 
-This architecture provides a clear migration path:
+### Module Metadata (`package-info.java`)
 
-1. **Already separated at Maven level**: Each module is already a separate Maven artifact
-2. **Service interfaces define clear boundaries**: Easy to replace with REST/gRPC
-3. **Separate schemas**: Can easily move to separate databases
-4. **To extract a module**:
-   - Create separate Git repository for the module
-   - Move module's schema to separate database
-   - Replace direct method calls with REST/gRPC
-   - Deploy module independently
-   - Update dependent modules to call via HTTP
+```java
+@ApplicationModule(
+    displayName = "Order Module",
+    allowedDependencies = "product"  // Explicit dependency declaration
+)
+package com.demo.modular.order;
+```
 
-## Architecture Benefits
+### Benefits
 
-- ✅ **True Modular Architecture**: Maven-enforced boundaries (not just packages)
-- ✅ **Strong Dependency Management**: Explicit dependencies in pom.xml
-- ✅ **Independent Building**: Each module can be built separately
-- ✅ **Circular Dependency Prevention**: Maven enforces acyclic dependencies
-- ✅ **Schema Isolation**: Clear data boundaries
-- ✅ **Performance**: Direct method calls, no network overhead
-- ✅ **Flexibility**: Easy to extract modules to microservices later
-- ✅ **Development Speed**: Faster than microservices for small teams
-- ✅ **Easier Testing**: Can test modules independently
+1. **Compile-Time Verification**: Module boundaries checked during build
+2. **Runtime Enforcement**: Spring prevents invalid module access
+3. **Documentation**: Auto-generates module diagrams
+4. **Testing**: Built-in module testing support
+5. **Future-Proof**: Easy migration path to microservices
 
-## Documentation
+### Generated Documentation
 
-- **README.md** - This file (getting started and API docs)
-- **MULTI-MODULE-STRUCTURE.md** - Detailed multi-module Maven architecture explanation
-- **ARCHITECTURE.md** - Deep architectural insights and patterns
-- **DIAGRAMS.md** - Visual diagrams of system architecture
-- **POSTMAN-GUIDE.md** - Comprehensive Postman collection usage guide
-- **QUICK-REFERENCE.md** - Command cheat sheet
+After running tests, view generated docs:
+```
+application/target/spring-modulith-docs/
+├── components.puml          # Overall component diagram
+├── module-product.puml      # Product module diagram
+├── module-order.puml        # Order module diagram
+├── module-payment.puml      # Payment module diagram
+└── *.adoc                   # AsciiDoc documentation
+```
 
-## Troubleshooting
+## 🎯 Domain-Driven Design (DDD)
+
+### Value Objects
+
+Each module includes value objects for type safety and domain expressiveness:
+
+**Product Module:**
+- `ProductId` - Type-safe product identifier
+- `ProductName` - Validated product name
+- `Quantity` - Ensures positive quantities
+- `Money` - Handles currency and precision
+
+**Example Usage:**
+```java
+// Instead of primitives:
+// Long id; String name; int quantity; BigDecimal price;
+
+// Type-safe value objects:
+ProductId productId;
+ProductName productName;
+Quantity quantity;
+Money price;
+```
+
+### Rich Domain Models
+
+Entities contain business logic, not just data:
+
+```java
+public class Product {
+    private ProductId id;
+    private ProductName name;
+    private Money price;
+    private Quantity stock;
+    
+    // Business logic in entity
+    public void reduceStock(Quantity quantity) {
+        if (!hasAvailableStock(quantity)) {
+            throw new InsufficientStockException();
+        }
+        this.stock = this.stock.subtract(quantity);
+    }
+}
+```
+
+## 📦 Build & Deployment
+
+### Maven Build
+
+```bash
+# Clean build
+./mvnw clean install
+
+# Skip tests
+./mvnw clean install -DskipTests
+
+# Build specific module
+cd application && mvn clean package
+
+# Run with specific profile
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+### Docker Build
+
+```bash
+# Build image manually
+docker build -t modular-monolith:latest .
+
+# Run container
+docker run -p 8080:8080 \
+  --network modular-network \
+  modular-monolith:latest
+```
+
+## 🔍 Architecture Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| **Strong Boundaries** | Spring Modulith enforces module encapsulation |
+| **Easy Testing** | Test modules independently with clear contracts |
+| **Team Autonomy** | Teams can work on separate modules concurrently |
+| **Refactoring Safety** | ArchUnit tests prevent architecture violations |
+| **Performance** | Direct method calls (no network overhead) |
+| **Deployment Simplicity** | Single deployable artifact |
+| **Migration Path** | Clear path to microservices when needed |
+| **Type Safety** | Value objects prevent primitive obsession |
+| **Domain Focus** | DDD patterns keep business logic central |
+
+## 🚧 Migration Path to Microservices
+
+This architecture provides a **seamless migration path**:
+
+### Current State (Modular Monolith)
+```
+┌─────────────────────────────────┐
+│   Single Spring Boot App        │
+│  ┌────────┐  ┌────────┐         │
+│  │Product │→ │ Order  │→ Payment│
+│  └────────┘  └────────┘         │
+└─────────────────────────────────┘
+         ↓
+    Single Database (3 schemas)
+```
+
+### Future State (Microservices)
+```
+┌─────────┐    ┌─────────┐    ┌─────────┐
+│ Product │    │  Order  │    │ Payment │
+│ Service │ ← HTTP → │ Service │ ← HTTP →│ Service │
+└────┬────┘    └────┬────┘    └────┬────┘
+     │              │              │
+  ┌──┴──┐       ┌──┴──┐       ┌──┴──┐
+  │ DB1 │       │ DB2 │       │ DB3 │
+  └─────┘       └─────┘       └─────┘
+```
+
+### Migration Steps
+
+1. **Already Done**: Modules with clear boundaries ✅
+2. **Already Done**: Separate database schemas ✅
+3. **Extract Module**: Move module to separate repository
+4. **Replace Calls**: Change direct calls to HTTP/gRPC
+5. **Deploy Independently**: Each module as separate service
+
+## 📚 Additional Documentation
+
+- **[DIAGRAMS.md](DIAGRAMS.md)** - Visual architecture diagrams
+- **[Modular-Monolith-POC.postman_collection.json](Modular-Monolith-POC.postman_collection.json)** - Postman collection for testing
+
+## 🐛 Troubleshooting
 
 ### Docker Issues
 
-If you encounter Docker build issues:
 ```bash
+# Clean Docker environment
 docker-compose down -v
-docker system prune -a
+docker system prune -a --volumes
 docker-compose up --build
-```
-
-### Maven Build Issues
-
-If modules fail to compile:
-```bash
-# Clean all modules
-./mvnw clean
-
-# Rebuild from parent
-./mvnw clean install
 ```
 
 ### Database Connection Issues
 
-Check PostgreSQL is running:
 ```bash
-docker-compose ps
+# Check PostgreSQL status
+docker-compose ps postgres
 docker-compose logs postgres
+
+# Verify database connectivity
+docker exec -it modular-monolith-postgres pg_isready -U admin
 ```
 
 ### Application Logs
 
-View application logs:
 ```bash
-docker-compose logs app -f
+# View live logs
+docker-compose logs -f app
+
+# View specific module logs
+docker-compose logs app | grep "com.demo.modular.order"
 ```
 
-## Author
+### Module Boundary Violations
 
-Built as a proof-of-concept for **true multi-module Maven architecture** demonstrating modular monolithic patterns.
+If `ApplicationModulesTest` fails:
+1. Check which module is accessing internal packages
+2. Review the test output for specific violations
+3. Ensure you're only using `api.*` and `service` packages
+
+### ArchUnit Test Failures
+
+If `ModuleArchitectureTest` fails:
+1. Review the specific rule that failed
+2. Check package structure matches conventions
+3. Ensure internal classes are package-private
+
+## 🤝 Contributing
+
+When adding new features:
+
+1. **Follow Module Structure**: Use `api`, `service`, and `internal` packages
+2. **Add Value Objects**: Create value objects for domain primitives
+3. **Write Tests**: Include unit tests and architecture tests
+4. **Update Documentation**: Keep README and diagrams current
+5. **Verify Module Boundaries**: Run `ApplicationModulesTest`
+6. **Check Architecture**: Run `ModuleArchitectureTest`
+
+## 📄 License
+
+This is a proof-of-concept project demonstrating modular monolithic architecture with Spring Modulith.
+
+## 👨‍💻 Author
+
+Built to demonstrate best practices in:
+- Modular Monolithic Architecture
+- Spring Modulith
+- Domain-Driven Design
+- Architecture Testing
+- Database Schema Isolation
+
+---
+
+**🌟 Key Takeaway**: This architecture gives you the simplicity of a monolith with the modularity of microservices, providing a clear evolution path as your application grows.

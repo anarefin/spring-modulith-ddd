@@ -7,6 +7,10 @@ import com.demo.modular.order.api.exception.OrderCreationException;
 import com.demo.modular.order.api.exception.OrderInvalidStateException;
 import com.demo.modular.order.api.exception.OrderNotFoundException;
 import com.demo.modular.order.internal.domain.Order;
+import com.demo.modular.order.internal.domain.vo.Money;
+import com.demo.modular.order.internal.domain.vo.ProductId;
+import com.demo.modular.order.internal.domain.vo.ProductName;
+import com.demo.modular.order.internal.domain.vo.Quantity;
 import com.demo.modular.order.internal.repository.OrderRepository;
 import com.demo.modular.order.service.OrderService;
 import com.demo.modular.product.api.dto.ProductDTO;
@@ -22,10 +26,13 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Application Service for Order module.
+ * Orchestrates use cases - delegates business logic to domain layer.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -40,8 +47,6 @@ class OrderServiceImpl implements OrderService {
     @Override
     @Timed(value = "order.create", description = "Time taken to create an order")
     public OrderDTO createOrder(CreateOrderRequest request) {
-        validateCreateOrderRequest(request);
-        
         log.info("[Order Module] Creating order for product {} with quantity {}", 
                 request.getProductId(), request.getQuantity());
         
@@ -63,16 +68,17 @@ class OrderServiceImpl implements OrderService {
                 throw new InsufficientStockException(productId, quantity, stockCheck.getAvailableStock());
             }
             
-            // Calculate total amount
-            BigDecimal totalAmount = product.getPrice().multiply(BigDecimal.valueOf(quantity));
+            // Calculate total amount using value objects
+            Money unitPrice = Money.of(product.getPrice());
+            Money totalAmount = unitPrice.multiply(quantity);
             
-            // Create order
-            Order order = new Order();
-            order.setProductId(productId);
-            order.setProductName(product.getName()); // Store snapshot
-            order.setQuantity(quantity);
-            order.setTotalAmount(totalAmount);
-            order.setStatus(OrderStatus.PENDING);
+            // Use static factory method to create order aggregate with validation
+            Order order = Order.create(
+                ProductId.of(productId),
+                ProductName.of(product.getName()),
+                Quantity.of(quantity),
+                totalAmount
+            );
             
             savedOrder = orderRepository.save(order);
             log.info("[Order Module] Order saved with id: {}", savedOrder.getId());
@@ -111,7 +117,7 @@ class OrderServiceImpl implements OrderService {
             if (savedOrder != null) {
                 try {
                     log.warn("[Order Module] [Compensation] Marking order {} as cancelled", savedOrder.getId());
-                    savedOrder.setStatus(OrderStatus.CANCELLED);
+                    savedOrder.cancel();
                     orderRepository.save(savedOrder);
                 } catch (Exception cancelEx) {
                     log.error("[Order Module] [Compensation] Failed to cancel order {}", savedOrder.getId(), cancelEx);
@@ -126,7 +132,6 @@ class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     @Timed(value = "order.findById", description = "Time taken to find order by ID")
     public Optional<OrderDTO> getOrderById(Long id) {
-        validateId(id);
         log.debug("[Order Module] Fetching order with id: {}", id);
         return orderRepository.findById(id)
                 .map(orderMapper::toDTO);
@@ -157,7 +162,6 @@ class OrderServiceImpl implements OrderService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Timed(value = "order.updateStatus", description = "Time taken to update order status")
     public void updateOrderStatus(Long orderId, OrderStatus status) {
-        validateId(orderId);
         if (status == null) {
             throw new IllegalArgumentException("Order status cannot be null");
         }
@@ -166,38 +170,47 @@ class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
         
-        // Validate status transition
-        validateStatusTransition(order.getStatus(), status);
-        
-        order.setStatus(status);
-        orderRepository.save(order);
-        log.info("[Order Module] Order status updated successfully");
+        // Use aggregate's state machine methods
+        try {
+            switch (status) {
+                case PAID -> order.markAsPaid();
+                case FAILED -> order.markAsFailed();
+                case CANCELLED -> order.cancel();
+                default -> throw new IllegalArgumentException("Invalid status transition to: " + status);
+            }
+            
+            orderRepository.save(order);
+            log.info("[Order Module] Order status updated successfully");
+        } catch (IllegalStateException e) {
+            log.error("[Order Module] Failed to update order status", e);
+            throw new OrderInvalidStateException(orderId, order.getStatus(), e.getMessage());
+        }
     }
 
     @Override
     @Timed(value = "order.cancel", description = "Time taken to cancel an order")
     public void cancelOrder(Long id) {
-        validateId(id);
         log.info("[Order Module] Cancelling order with id: {}", id);
         
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(id));
         
-        // Validate that order can be cancelled
-        if (order.getStatus() == OrderStatus.PAID) {
-            throw new OrderInvalidStateException(id, order.getStatus(), "Cannot cancel paid order");
+        // Use aggregate's business method to check if can be cancelled
+        if (!order.canBeCancelled()) {
+            throw new OrderInvalidStateException(id, order.getStatus(), 
+                "Cannot cancel order in " + order.getStatus() + " state");
         }
         
-        if (order.getStatus() == OrderStatus.CANCELLED) {
+        if (order.isCancelled()) {
             log.warn("[Order Module] Order {} is already cancelled", id);
             return;
         }
         
         // Compensation: Restore stock if order was pending
-        if (order.getStatus() == OrderStatus.PENDING) {
+        if (order.isPending()) {
             try {
                 log.info("[Order Module] [Compensation] Restoring stock for cancelled order {}", id);
-                productService.restoreStock(order.getProductId(), order.getQuantity());
+                productService.restoreStock(order.getProductId(), order.getQuantity().getValue());
                 log.info("[Order Module] [Compensation] Stock restored successfully");
             } catch (Exception e) {
                 log.error("[Order Module] [Compensation] Failed to restore stock for order {}", id, e);
@@ -205,42 +218,10 @@ class OrderServiceImpl implements OrderService {
             }
         }
         
-        order.setStatus(OrderStatus.CANCELLED);
+        // Use aggregate's state machine method
+        order.cancel();
         orderRepository.save(order);
         log.info("[Order Module] Order cancelled successfully");
-    }
-
-    private void validateCreateOrderRequest(CreateOrderRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("CreateOrderRequest cannot be null");
-        }
-        if (request.getProductId() == null || request.getProductId() <= 0) {
-            throw new IllegalArgumentException("Product ID must be positive");
-        }
-        if (request.getQuantity() == null || request.getQuantity() <= 0) {
-            throw new IllegalArgumentException("Quantity must be positive");
-        }
-    }
-
-    private void validateId(Long id) {
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("Order ID must be positive");
-        }
-    }
-
-    private void validateStatusTransition(OrderStatus currentStatus, OrderStatus newStatus) {
-        // Define valid status transitions
-        boolean isValid = switch (currentStatus) {
-            case PENDING -> newStatus == OrderStatus.PAID || newStatus == OrderStatus.FAILED || newStatus == OrderStatus.CANCELLED;
-            case PAID -> false; // Cannot transition from PAID
-            case FAILED -> newStatus == OrderStatus.CANCELLED;
-            case CANCELLED -> false; // Cannot transition from CANCELLED;
-        };
-        
-        if (!isValid) {
-            throw new OrderInvalidStateException(null, currentStatus, 
-                    String.format("Cannot transition from %s to %s", currentStatus, newStatus));
-        }
     }
 }
 
