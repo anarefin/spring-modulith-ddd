@@ -27,31 +27,32 @@ This application implements a **modular monolith** pattern where business capabi
 ```
 ┌─────────────────────────────────────────────────────┐
 │                                                      │
-│              Product Module (No Dependencies)        │
+│              Product Module                          │
 │              • ProductService                        │
 │              • ProductDTO                            │
+│              • No dependencies                       │
 │                                                      │
-└──────────────────────┬───────────────────────────────┘
+└──────────────────────▲───────────────────────────────┘
                        │
-                       │ depends on
-                       ▼
-┌─────────────────────────────────────────────────────┐
+                       │ uses
+                       │
+┌──────────────────────┴───────────────────────────────┐
 │                                                      │
 │              Order Module                            │
 │              • OrderService                          │
 │              • OrderDTO, OrderStatus                 │
-│              • Uses: ProductService                  │
+│              • Depends on: Product Module            │
 │                                                      │
-└──────────────────────┬───────────────────────────────┘
+└──────────────────────▲───────────────────────────────┘
                        │
-                       │ depends on
-                       ▼
-┌─────────────────────────────────────────────────────┐
+                       │ uses
+                       │
+┌──────────────────────┴───────────────────────────────┐
 │                                                      │
 │              Payment Module                          │
 │              • PaymentService                        │
 │              • PaymentDTO, PaymentStatus             │
-│              • Uses: OrderService                    │
+│              • Depends on: Order Module              │
 │                                                      │
 └─────────────────────────────────────────────────────┘
 ```
@@ -572,14 +573,14 @@ This architecture provides a **seamless migration path**:
 
 ### Future State (Microservices)
 ```
-┌─────────┐    ┌─────────┐    ┌─────────┐
-│ Product │    │  Order  │    │ Payment │
-│ Service │ ← HTTP → │ Service │ ← HTTP →│ Service │
-└────┬────┘    └────┬────┘    └────┬────┘
-     │              │              │
-  ┌──┴──┐       ┌──┴──┐       ┌──┴──┐
-  │ DB1 │       │ DB2 │       │ DB3 │
-  └─────┘       └─────┘       └─────┘
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ Product │         │  Order  │         │ Payment │
+│ Service │ ◄─HTTP─►│ Service │ ◄─HTTP─►│ Service │
+└────┬────┘         └────┬────┘         └────┬────┘
+     │                   │                   │
+  ┌──┴──┐            ┌──┴──┐            ┌──┴──┐
+  │ DB1 │            │ DB2 │            │ DB3 │
+  └─────┘            └─────┘            └─────┘
 ```
 
 ### Migration Steps
