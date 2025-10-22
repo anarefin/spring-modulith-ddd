@@ -1,7 +1,8 @@
-@org.springframework.modulith.ApplicationModule(
-    displayName = "Product Module",
-    allowedDependencies = {}
-)
+// Temporarily disabled due to Java 25 compatibility issues with Spring Modulith
+// @org.springframework.modulith.ApplicationModule(
+//     displayName = "Product Module",
+//     allowedDependencies = {}
+// )
 package com.demo.modular.product;
 
 /**

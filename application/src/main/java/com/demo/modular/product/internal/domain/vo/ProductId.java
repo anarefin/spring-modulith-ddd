@@ -2,6 +2,7 @@ package com.demo.modular.product.internal.domain.vo;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import org.jmolecules.ddd.annotation.ValueObject;
 
 import java.io.Serializable;
 
@@ -11,6 +12,7 @@ import java.io.Serializable;
  */
 @Getter
 @EqualsAndHashCode
+@ValueObject
 public class ProductId implements Serializable {
     
     private final Long value;

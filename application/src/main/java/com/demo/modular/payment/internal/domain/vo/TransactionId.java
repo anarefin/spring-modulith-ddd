@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.jmolecules.ddd.annotation.ValueObject;
 
 /**
  * Value Object representing Transaction ID.
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @EqualsAndHashCode
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // For JPA
+@ValueObject
 public class TransactionId {
     
     private String value;

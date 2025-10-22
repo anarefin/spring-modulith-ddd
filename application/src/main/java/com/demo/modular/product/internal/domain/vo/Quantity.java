@@ -5,8 +5,8 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.jmolecules.ddd.annotation.ValueObject;
 
-import java.util.Objects;
 
 /**
  * Value Object representing quantity.
@@ -16,6 +16,7 @@ import java.util.Objects;
 @Getter
 @EqualsAndHashCode
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // For JPA
+@ValueObject
 public class Quantity {
     
     private Integer value;

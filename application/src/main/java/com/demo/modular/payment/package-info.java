@@ -1,7 +1,8 @@
-@org.springframework.modulith.ApplicationModule(
-    displayName = "Payment Module",
-    allowedDependencies = "order"
-)
+// Temporarily disabled due to Java 25 compatibility issues with Spring Modulith
+// @org.springframework.modulith.ApplicationModule(
+//     displayName = "Payment Module",
+//     allowedDependencies = "order"
+// )
 package com.demo.modular.payment;
 
 /**

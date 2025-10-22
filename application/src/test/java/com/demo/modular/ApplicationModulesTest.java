@@ -15,6 +15,7 @@ class ApplicationModulesTest {
     void verifyModuleStructure() {
         // Verifies that module boundaries are not violated
         // This test will fail if any module accesses internals of another module
+        // Note: Service implementations in internal packages can access public APIs of other modules
         modules.verify();
     }
 

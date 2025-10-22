@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.jmolecules.ddd.annotation.AggregateRoot;
+import org.jmolecules.ddd.annotation.Identity;
 
 import java.time.LocalDateTime;
 
@@ -18,10 +20,12 @@ import java.time.LocalDateTime;
 @Table(name = "products", schema = "product_schema")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // For JPA
+@AggregateRoot
 public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Identity
     private Long id;
 
     @Embedded
